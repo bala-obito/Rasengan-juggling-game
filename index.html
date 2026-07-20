@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>RASENGAN // Energy Sphere Protocol</title>
+<style>
+  :root{
+    --bg-void:#03060d;
+    --bg-panel:#081120;
+    --bg-panel-2:#0c1830;
+    --line:#173257;
+    --cyan:#4ff2ff;
+    --cyan-dim:#1c7c8c;
+    --violet:#8a6bff;
+    --danger:#ff4d6a;
+    --text:#cfe9ff;
+    --text-dim:#6d8bb0;
+  }
+
+  *{box-sizing:border-box;}
+
+  @font-face{
+    font-family:'Chakra';
+    src:local('Arial');
+  }
+
+  html,body{
+    margin:0;
+    height:100%;
+    background:var(--bg-void);
+    color:var(--text);
+    font-family:'Rajdhani','Segoe UI',sans-serif;
+    overflow:hidden;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* ---------- ambient background ---------- */
+  #bg-grid{
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(79,242,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,242,255,0.05) 1px, transparent 1px);
+    background-size:38px 38px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 35%, black 10%, transparent 72%);
+    mask-image:radial-gradient(ellipse at 50% 35%, black 10%, transparent 72%);
+    pointer-events:none;
+    z-index:0;
+  }
+  #bg-glow{
+    position:fixed;
+    inset:0;
+    background:radial-gradient(ellipse 60% 40% at 50% 20%, rgba(79,242,255,0.10), transparent 60%),
+               radial-gradient(ellipse 50% 30% at 80% 90%, rgba(138,107,255,0.10), transparent 65%);
+    pointer-events:none;
+    z-index:0;
+  }
+  #scanlines{
+    position:fixed;
+    inset:0;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, transparent 1px, transparent 3px);
+    pointer-events:none;
+    z-index:5;
+    mix-blend-mode:overlay;
+  }
+
+  .frame{
+    position:relative;
+    z-index:1;
+    width:min(94vw, 420px);
+  }
+
+  /* ---------- shared HUD panel look ---------- */
+  .panel{
+    background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+    border:1px solid var(--line);
+    position:relative;
+    clip-path:polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  }
+  .panel::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    padding:1px;
+    background:linear-gradient(135deg, var(--cyan), transparent 40%, transparent 60%, var(--violet));
+    clip-path:inherit;
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    opacity:0.5;
+    pointer-events:none;
+  }
+
+  .eyebrow{
+    font-family:'Share Tech Mono','Consolas',monospace;
+    letter-spacing:3px;
+    font-size:11px;
+    color:var(--cyan-dim);
+    text-transform:uppercase;
+  }
+
+  /* ---------- MENU ---------- */
+  #menu{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:22px;
+    padding:38px 30px 30px;
+    text-align:center;
+  }
+
+  #menu .eyebrow{ margin-bottom:2px; }
+
+  #menu h1{
+    margin:0;
+    font-size:44px;
+    font-weight:700;
+    letter-spacing:4px;
+    color:#eafcff;
+    text-shadow:0 0 6px rgba(79,242,255,0.9), 0 0 26px rgba(79,242,255,0.45);
+  }
+  #menu h1 span{ color:var(--violet); text-shadow:0 0 6px rgba(138,107,255,0.9), 0 0 26px rgba(138,107,255,0.45); }
+
+  #menu .sub{
+    margin-top:-10px;
+    font-size:13px;
+    letter-spacing:2px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+  }
+
+  .orb-preview{
+    width:96px;
+    height:96px;
+    border-radius:50%;
+    position:relative;
+    margin:6px 0 4px;
+  }
+  .orb-preview::before,
+  .orb-preview::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border:1.5px solid var(--cyan);
+    opacity:0.55;
+    animation:spin 5s linear infinite;
+  }
+  .orb-preview::after{
+    border-color:var(--violet);
+    inset:14px;
+    animation-duration:3.4s;
+    animation-direction:reverse;
+  }
+  .orb-core{
+    position:absolute;
+    inset:22px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #eafcff, #4ff2ff 45%, #1c7c8c 78%, transparent 100%);
+    box-shadow:0 0 24px 6px rgba(79,242,255,0.55);
+    animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @keyframes pulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.08); } }
+
+  .mode-row{
+    display:flex;
+    gap:12px;
+    width:100%;
+  }
+
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border:none;
+  }
+
+  .btn{
+    background:linear-gradient(180deg, rgba(79,242,255,0.14), rgba(79,242,255,0.03));
+    border:1px solid var(--cyan-dim);
+    color:var(--text);
+    padding:14px 10px;
+    font-size:15px;
+    letter-spacing:1.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition:0.18s ease;
+    flex:1;
+  }
+  .btn:hover{ background:rgba(79,242,255,0.22); box-shadow:0 0 16px rgba(79,242,255,0.35); }
+  .btn:active{ transform:scale(0.97); }
+  .btn.hard{ border-color:#9a4c6a; background:linear-gradient(180deg, rgba(255,77,106,0.14), rgba(255,77,106,0.03)); }
+  .btn.hard:hover{ background:rgba(255,77,106,0.22); box-shadow:0 0 16px rgba(255,77,106,0.35); }
+
+  .readout{
+    margin-top:6px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    font-family:'Share Tech Mono','Consolas',monospace;
+    background:rgba(0,0,0,0.35);
+    border:1px solid var(--line);
+    padding:10px 18px;
+  }
+  .readout .label{ font-size:11px; letter-spacing:2px; color:var(--text-dim); text-transform:uppercase; }
+  .readout .value{ font-size:22px; color:var(--cyan); text-shadow:0 0 8px rgba(79,242,255,0.6); }
+
+  /* ---------- GAME SCREEN ---------- */
+  #gameUI{ display:none; flex-direction:column; align-items:center; gap:10px; }
+
+  .top-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 12px;
+    font-family:'Share Tech Mono','Consolas',monospace;
+    font-size:12px;
+  }
+  .top-bar .stat{ display:flex; flex-direction:column; line-height:1.1; }
+  .top-bar .stat .label{ color:var(--text-dim); letter-spacing:2px; font-size:9px; }
+  .top-bar .stat .value{ color:var(--cyan); font-size:17px; text-shadow:0 0 6px rgba(79,242,255,0.6); }
+  .top-bar .icons{ display:flex; gap:6px; }
+
+  .icon-btn{
+    width:34px;
+    height:34px;
+    background:rgba(79,242,255,0.08);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    clip-path:polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    transition:0.15s;
+  }
+  .icon-btn:hover{ background:rgba(79,242,255,0.2); }
+  .icon-btn:active{ transform:scale(0.92); }
+  .icon-btn.danger{ border-color:#7a2e3f; }
+  .icon-btn.danger:hover{ background:rgba(255,77,106,0.2); }
+
+  /* canvas + bracket frame */
+  .canvas-wrap{
+    position:relative;
+    width:100%;
+  }
+  .bracket{
+    position:absolute;
+    width:22px;
+    height:22px;
+    border:2px solid var(--cyan);
+    opacity:0.85;
+    z-index:2;
+    pointer-events:none;
+  }
+  .bracket.tl{ top:-4px; left:-4px; border-right:none; border-bottom:none; }
+  .bracket.tr{ top:-4px; right:-4px; border-left:none; border-bottom:none; }
+  .bracket.bl{ bottom:-4px; left:-4px; border-right:none; border-top:none; }
+  .bracket.br{ bottom:-4px; right:-4px; border-left:none; border-top:none; }
+
+  canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    aspect-ratio:2/3;
+    background:radial-gradient(ellipse at 50% 20%, #071227, #010409 80%);
+    border:1px solid var(--line);
+    box-shadow:0 0 30px rgba(79,242,255,0.12), inset 0 0 40px rgba(0,0,0,0.6);
+  }
+
+  /* touch controls */
+  #touchControls{
+    display:flex;
+    justify-content:space-between;
+    width:100%;
+    margin-top:2px;
+  }
+  .arrow-btn{
+    width:46%;
+    height:56px;
+    background:linear-gradient(180deg, rgba(79,242,255,0.12), rgba(79,242,255,0.02));
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    font-size:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:none;
+  }
+  .arrow-btn:active, .arrow-btn.pressed{
+    background:rgba(79,242,255,0.3);
+    box-shadow:0 0 18px rgba(79,242,255,0.4);
+  }
+
+  .footnote{
+    font-family:'Share Tech Mono','Consolas',monospace;
+    font-size:10px;
+    color:var(--text-dim);
+    letter-spacing:1px;
+    text-align:center;
+    margin-top:2px;
+  }
+
+  @media (min-width:640px){
+    #touchControls{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="bg-grid"></div>
+<div id="bg-glow"></div>
+<div id="scanlines"></div>
+
+<div class="frame">
+
+  <!-- MENU -->
+  <div id="menu" class="panel">
+    <div class="eyebrow">Energy Sphere Protocol</div>
+    <h1>RASEN<span>GAN</span></h1>
+    <div class="sub">Chakra Containment Simulator</div>
+
+    <div class="orb-preview"><div class="orb-core"></div></div>
+
+    <div class="mode-row">
+      <button class="btn" onclick="startGame('normal')">Normal</button>
+      <button class="btn hard" onclick="startGame('hard')">Hard</button>
+    </div>
+
+    <div class="readout">
+      <span class="label">Best</span>
+      <span class="value" id="highScore">0</span>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="gameUI">
+    <div class="top-bar panel">
+      <div class="stat"><span class="label">SCORE</span><span class="value" id="score">0</span></div>
+      <div class="stat"><span class="label">MODE</span><span class="value" id="modeLabel" style="font-size:13px;">NORMAL</span></div>
+      <div class="icons">
+        <button class="icon-btn" onclick="goMenu()" title="Menu">⌂</button>
+        <button class="icon-btn" onclick="saveScore()" title="Save Score">💾</button>
+        <button class="icon-btn" id="pauseBtn" onclick="pauseGame()" title="Pause">⏸</button>
+        <button class="icon-btn" onclick="restartGame()" title="Restart">↻</button>
+        <button class="icon-btn danger" onclick="resetGame()" title="Full Reset">✕</button>
+      </div>
+    </div>
+
+    <div class="canvas-wrap">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="touchControls">
+      <button class="arrow-btn" id="btnLeft">◀</button>
+      <button class="arrow-btn" id="btnRight">▶</button>
+    </div>
+
+    <div class="footnote">ARROW KEYS · DRAG · OR ON-SCREEN CONTROLS TO MOVE THE CONDUIT</div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = 400;
+canvas.height = 600;
+
+let score = 0;
+let highScore = Number(localStorage.getItem("rasenganHighScore")) || 0;
+document.getElementById("highScore").innerText = highScore;
+
+let gameOver = false;
+let paused = false;
+let mode = "normal";
+
+let ball = { x: 200, y: 100, dx: 2, dy: 3, r: 20, spin: 0 };
+let hand = { x: 160, y: canvas.height - 34, w: 90, h: 16, speed: 5.5 };
+let moveLeft = false;
+let moveRight = false;
+
+// --- synthesized "energy pulse" sound (no external audio dependency) ---
+let audioCtx = null;
+function playPulse() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(520, t0);
+    osc.frequency.exponentialRampToValueAtTime(140, t0 + 0.18);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.25);
+  } catch (e) { /* audio unsupported, ignore */ }
+}
+
+function startGame(selectedMode) {
+  mode = selectedMode;
+  document.getElementById("modeLabel").innerText = selectedMode.toUpperCase();
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("gameUI").style.display = "flex";
+  restartGame();
+}
+
+function goMenu() {
+  document.getElementById("menu").style.display = "flex";
+  document.getElementById("gameUI").style.display = "none";
+  score = 0;
+}
+
+function drawGrid() {
+  ctx.strokeStyle = "rgba(79,242,255,0.05)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x += 25) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 25) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+}
+
+function drawRasengan() {
+  ball.spin += 0.06;
+
+  // outer glow
+  ctx.save();
+  ctx.shadowColor = "#4ff2ff";
+  ctx.shadowBlur = 25;
+
+  let g = ctx.createRadialGradient(ball.x, ball.y, 2, ball.x, ball.y, ball.r);
+  g.addColorStop(0, "#eafcff");
+  g.addColorStop(0.35, "#4ff2ff");
+  g.addColorStop(0.75, "#1c7c8c");
+  g.addColorStop(1, "rgba(28,124,140,0)");
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.restore();
+
+  // rotating containment rings
+  ctx.save();
+  ctx.translate(ball.x, ball.y);
+  ctx.rotate(ball.spin);
+  ctx.strokeStyle = "rgba(234,252,255,0.75)";
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, ball.r * 0.68, 0.2, Math.PI * 1.1);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(138,107,255,0.7)";
+  ctx.beginPath();
+  ctx.arc(0, 0, ball.r * 0.9, Math.PI * 0.9, Math.PI * 1.8);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHand() {
+  ctx.save();
+  ctx.shadowColor = "#4ff2ff";
+  ctx.shadowBlur = 14;
+  let g = ctx.createLinearGradient(hand.x, 0, hand.x + hand.w, 0);
+  g.addColorStop(0, "#1c7c8c");
+  g.addColorStop(0.5, "#4ff2ff");
+  g.addColorStop(1, "#1c7c8c");
+  ctx.fillStyle = g;
+  ctx.fillRect(hand.x, hand.y, hand.w, hand.h);
+  ctx.restore();
+
+  ctx.strokeStyle = "rgba(234,252,255,0.6)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const tx = hand.x + (hand.w / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(tx, hand.y + 3);
+    ctx.lineTo(tx, hand.y + hand.h - 3);
+    ctx.stroke();
+  }
+}
+
+function update() {
+  if (gameOver || paused) return;
+
+  if (moveLeft) hand.x -= hand.speed;
+  if (moveRight) hand.x += hand.speed;
+  hand.x = Math.max(0, Math.min(canvas.width - hand.w, hand.x));
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+
+  drawRasengan();
+  drawHand();
+
+  ball.x += ball.dx;
+  ball.y += ball.dy;
+
+  if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.dx *= -1;
+  if (ball.y < ball.r) ball.dy *= -1;
+
+  if (
+    ball.y + ball.r >= hand.y &&
+    ball.x >= hand.x &&
+    ball.x <= hand.x + hand.w
+  ) {
+    ball.dy *= -1;
+    ball.y = hand.y - ball.r;
+    score++;
+    document.getElementById("score").innerText = score;
+    playPulse();
+
+    if (mode === "hard") {
+      ball.dx *= 1.05;
+      ball.dy *= 1.05;
+    }
+  }
+
+  if (ball.y > canvas.height) {
+    gameOver = true;
+    ctx.save();
+    ctx.fillStyle = "rgba(3,6,13,0.75)";
+    ctx.fillRect(0, canvas.height / 2 - 60, canvas.width, 120);
+    ctx.fillStyle = "#ff4d6a";
+    ctx.shadowColor = "#ff4d6a";
+    ctx.shadowBlur = 16;
+    ctx.font = "bold 28px 'Share Tech Mono', Consolas, monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("CONTAINMENT FAILED", canvas.width / 2, canvas.height / 2 - 5);
+    ctx.fillStyle = "#cfe9ff";
+    ctx.shadowBlur = 0;
+    ctx.font = "16px 'Share Tech Mono', Consolas, monospace";
+    ctx.fillText("Tap Restart to try again", canvas.width / 2, canvas.height / 2 + 24);
+    ctx.textAlign = "left";
+    ctx.restore();
+    return;
+  }
+
+  requestAnimationFrame(update);
+}
+
+function pauseGame() {
+  paused = !paused;
+  document.getElementById("pauseBtn").innerText = paused ? "▶" : "⏸";
+  if (!paused) update();
+}
+
+// keyboard
+document.addEventListener("keydown", (e) => {
+  if (e.code === "ArrowLeft") moveLeft = true;
+  if (e.code === "ArrowRight") moveRight = true;
+});
+document.addEventListener("keyup", (e) => {
+  if (e.code === "ArrowLeft") moveLeft = false;
+  if (e.code === "ArrowRight") moveRight = false;
+});
+
+// mouse / touch drag directly on canvas
+canvas.addEventListener("mousemove", (e) => {
+  let rect = canvas.getBoundingClientRect();
+  let scale = canvas.width / rect.width;
+  hand.x = (e.clientX - rect.left) * scale - hand.w / 2;
+});
+canvas.addEventListener("touchmove", (e) => {
+  let rect = canvas.getBoundingClientRect();
+  let scale = canvas.width / rect.width;
+  hand.x = (e.touches[0].clientX - rect.left) * scale - hand.w / 2;
+  e.preventDefault();
+}, { passive: false });
+
+// on-screen arrow buttons (mobile control)
+function bindArrow(el, setFn) {
+  const start = (e) => { setFn(true); el.classList.add("pressed"); e.preventDefault(); };
+  const end = (e) => { setFn(false); el.classList.remove("pressed"); e.preventDefault(); };
+  el.addEventListener("touchstart", start, { passive: false });
+  el.addEventListener("touchend", end, { passive: false });
+  el.addEventListener("touchcancel", end, { passive: false });
+  el.addEventListener("mousedown", start);
+  el.addEventListener("mouseup", end);
+  el.addEventListener("mouseleave", end);
+}
+bindArrow(document.getElementById("btnLeft"), (v) => moveLeft = v);
+bindArrow(document.getElementById("btnRight"), (v) => moveRight = v);
+
+function restartGame() {
+  score = 0;
+  gameOver = false;
+  paused = false;
+  document.getElementById("score").innerText = score;
+  document.getElementById("pauseBtn").innerText = "⏸";
+
+  if (mode === "normal") {
+    ball = { x: 200, y: 100, dx: 2, dy: 3, r: 20, spin: 0 };
+  } else {
+    ball = { x: 200, y: 100, dx: 3, dy: 4, r: 20, spin: 0 };
+  }
+  hand.x = 160;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  requestAnimationFrame(update);
+}
+
+function resetGame() {
+  score = 0;
+  gameOver = false;
+  paused = false;
+  mode = "normal";
+  ball = { x: 200, y: 100, dx: 2, dy: 3, r: 20, spin: 0 };
+  hand = { x: 160, y: canvas.height - 34, w: 90, h: 16, speed: 5.5 };
+
+  document.getElementById("score").innerText = score;
+  document.getElementById("pauseBtn").innerText = "⏸";
+
+  localStorage.removeItem("rasenganHighScore");
+  highScore = 0;
+  document.getElementById("highScore").innerText = highScore;
+
+  document.getElementById("menu").style.display = "flex";
+  document.getElementById("gameUI").style.display = "none";
+}
+
+function saveScore() {
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem("rasenganHighScore", highScore);
+    document.getElementById("highScore").innerText = highScore;
+  } else {
+    // subtle flash instead of a blocking alert
+    const el = document.getElementById("highScore");
+    el.style.color = "#ff4d6a";
+    setTimeout(() => { el.style.color = ""; }, 400);
+  }
+}
+</script>
+</body>
+</html>
